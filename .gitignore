@@ -5,6 +5,9 @@ __pycache__/
 .directory
 **/private.py
 *.db
+*.db-shm
+*.db-wal
+*.png
 
 # C extensions
 *.so

@@ -6,7 +6,7 @@ import settings
 
 def main():
     # save to db
-    # twitterLocalController.saveQueryResult(" OR ".join(settings.TRACK_TERMS), 200)
+    twitterLocalController.saveQueryResult(" OR ".join(settings.TRACK_TERMS), 200)
     # get wordCloud
     corpus = twitterDataVisualization.processData()
     twitterDataVisualization.showWordCloud(corpus)
