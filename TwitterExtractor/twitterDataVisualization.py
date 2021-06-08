@@ -17,11 +17,25 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer
 import seaborn as sns
 
+from sklearn.cluster import KMeans
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+
 stopWords = (
     set(stopwords.words("spanish"))
     .union(set(stopwords.words("english")))
     .union(settings.stopWords)
 )
+
+
+def kmeans(corpus, k):
+    vectorizer = TfidfVectorizer(stop_words=list(stopWords))
+    wordVector = vectorizer.fit_transform(corpus)
+
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(wordVector)
+
+    print(kmeans.labels_)
 
 
 def showWordCloud(dataList):
@@ -42,8 +56,8 @@ def showWordCloud(dataList):
 
 def getTopWords(corpus, wordNumber=None, ngrams=(1, 1)):
     vectorizer = CountVectorizer(ngram_range=ngrams, max_features=2000).fit(corpus)
-    wordCollection = vectorizer.transform(corpus)
-    totalWords = wordCollection.sum(axis=0)
+    wordVector = vectorizer.transform(corpus)
+    totalWords = wordVector.sum(axis=0)
     wordFrequency = [
         (word, totalWords[0, idx]) for word, idx in vectorizer.vocabulary_.items()
     ]
@@ -80,8 +94,6 @@ def processData():
         text = re.sub(r"((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))", r" \1", text)
         # remove all non letters
         text = re.sub("[^a-zA-ZÑñÁáÉéÍíÓóÚú]", " ", text)
-
-        print(text)
 
         # Convert to lowercase
         text = text.lower()

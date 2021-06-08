@@ -6,7 +6,6 @@ import twitterLocalModel
 def saveStream(query):
     class StreamListener(tweepy.StreamListener):
         def on_status(self, tweet):
-            print(tweet)
             twitterLocalModel.saveTweet(tweet)
 
         def on_error(self, status_code):
