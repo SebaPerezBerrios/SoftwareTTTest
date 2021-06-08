@@ -3,6 +3,7 @@ import pandas as pd
 import sqlalchemy
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+import collections
 
 # Libraries for text preprocessing
 import re
@@ -32,10 +33,17 @@ stopWords = (
 def kmeans(corpus, k):
     vectorizer = TfidfVectorizer(stop_words=list(stopWords))
     wordVector = vectorizer.fit_transform(corpus)
+    model = KMeans(n_clusters=k, init="k-means++", max_iter=100, n_init=1)
+    model.fit(wordVector)
 
-    kmeans = KMeans(n_clusters=k, random_state=0).fit(wordVector)
+    clusters = collections.defaultdict(list)
+    for i, label in enumerate(model.labels_):
+        clusters[label].append(i)
 
-    print(kmeans.labels_)
+    print(clusters)
+
+    for label, indexes in clusters.items():
+        print(f"{label}: {[corpus[idx] for idx in indexes]}")
 
 
 def showWordCloud(dataList):
