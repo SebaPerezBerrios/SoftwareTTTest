@@ -12,3 +12,5 @@ sklearn
 seaborn
 python_dict_wrapper
 nltk
+somoclu
+gensim

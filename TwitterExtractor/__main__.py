@@ -6,10 +6,11 @@ import settings
 
 def main():
     # save to db
-    twitterLocalController.saveQueryResult(" OR ".join(settings.TRACK_TERMS), 201)
+    # twitterLocalController.saveQueryResult(" OR ".join(settings.TRACK_TERMS), 201)
     # get wordCloud
     corpus = twitterDataVisualization.processData()
-    twitterDataVisualization.kmeans(corpus, 5)
+    # twitterDataVisualization.kmeans(corpus, 5)
+    twitterDataVisualization.som_test(corpus)
 
     twitterDataVisualization.showWordCloud(corpus)
     wordVector = twitterDataVisualization.getTopWords(corpus, 30)

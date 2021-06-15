@@ -20,8 +20,11 @@ import seaborn as sns
 
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import HashingVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.decomposition import PCA
+import somoclu
+import gensim
+from gensim.models import Doc2Vec
+
 
 stopWords = (
     set(stopwords.words("spanish"))
@@ -44,6 +47,39 @@ def kmeans(corpus, k):
 
     for label, indexes in clusters.items():
         print(f"{label}: {[corpus[idx] for idx in indexes]}")
+
+
+def pca_fun(n_components, data):
+    pca = PCA(n_components=n_components).fit(data)
+    data = pca.transform(data)
+    return data
+
+
+def som(data):
+    som = somoclu.Somoclu(50, 50, data=data, maptype="toroid")
+    som.train(data)
+    return som
+
+
+def doc2vec(corpus):
+    document_tagged = []
+    tagged_count = 0
+    for _ in corpus:
+        document_tagged.append(gensim.models.doc2vec.TaggedDocument(_, [tagged_count]))
+        tagged_count += 1
+    d2v = Doc2Vec(document_tagged)
+    d2v.train(document_tagged, epochs=d2v.epochs, total_examples=d2v.corpus_count)
+    return d2v.docvecs.vectors
+
+
+def som_test(corpus):
+    # vectorizer = TfidfVectorizer(stop_words=list(stopWords))
+    # wordVector = vectorizer.fit_transform(corpus)
+
+    data = doc2vec(corpus)
+    data = pca_fun(2, data)
+    res = som(data)
+    res.view_component_planes()
 
 
 def showWordCloud(dataList):
@@ -77,7 +113,7 @@ def getTopWords(corpus, wordNumber=None, ngrams=(1, 1)):
 
 def showWordCount(wordFrequency, index):
     topWordsDataFrame = pd.DataFrame(wordFrequency)
-    topWordsDataFrame.columns = ["Termino", "Frecuencia"]  # Barplot of most freq words
+    # topWordsDataFrame.columns = ["Termino", "Frecuencia"]  # Barplot of most freq words
 
     # sns.set(rc={"figure.figsize": (20, 10)})
     plt.figure(figsize=(20, 10))
