@@ -1,9 +1,18 @@
-import settings
+from .settings import *
 from python_dict_wrapper import unwrap
 import dataset
 from sqlalchemy.exc import ProgrammingError
 
-db = dataset.connect(settings.CONNECTION_STRING)
+db = dataset.connect(CONNECTION_STRING)
+
+
+def getText(twitterObject):
+    try:
+        retweeted = twitterObject.retweeted_status
+        return getText(retweeted)
+
+    except:
+        return twitterObject.text
 
 
 def saveTweet(twitterObject):
@@ -18,10 +27,12 @@ def saveTweet(twitterObject):
     created = twitterObject.created_at
     retweets = twitterObject.retweet_count
 
+    print(getText(twitterObject))
+
     if coordinates is not None:
         coordinates = unwrap(coordinates)
 
-    table = db[settings.TABLE_NAME]
+    table = db[TABLE_NAME]
     try:
         table.upsert(
             dict(
@@ -43,7 +54,7 @@ def saveTweet(twitterObject):
 
 
 def readTweets():
-    table = db[settings.TABLE_NAME]
+    table = db[TABLE_NAME]
     try:
         return table.all()
     except ProgrammingError as err:

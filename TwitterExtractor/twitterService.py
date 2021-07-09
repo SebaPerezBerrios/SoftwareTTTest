@@ -1,14 +1,14 @@
-import settings
+from .settings import *
 import tweepy
 from python_dict_wrapper import wrap
 
-auth = tweepy.AppAuthHandler(settings.TWITTER_APP_KEY, settings.TWITTER_APP_SECRET)
+auth = tweepy.AppAuthHandler(TWITTER_APP_KEY, TWITTER_APP_SECRET)
 api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 
 
 def connectListener(streamListener, query):
     stream = tweepy.Stream(auth=api.auth, listener=streamListener)
-    stream.filter(track=settings.TRACK_TERMS)
+    stream.filter(track=TRACK_TERMS)
 
 
 def tweetObject(tweetDict):
