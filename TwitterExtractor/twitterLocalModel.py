@@ -9,6 +9,8 @@ db = dataset.connect(CONNECTION_STRING)
 def getText(twitterObject):
     try:
         retweeted = twitterObject.retweeted_status
+        print(twitterObject)
+        print(retweeted)
         return getText(retweeted)
 
     except:

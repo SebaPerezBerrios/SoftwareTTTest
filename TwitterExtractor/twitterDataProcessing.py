@@ -1,5 +1,6 @@
 from gensim.models import Doc2Vec
 import gensim
+from nltk.stem import wordnet
 from numpy import vectorize
 import somoclu
 from sklearn.decomposition import PCA
@@ -8,6 +9,8 @@ from sklearn.cluster import KMeans
 import seaborn as sns
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from .settings import *
 import pandas as pd
@@ -16,6 +19,8 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import collections
 from scipy.cluster.vq import vq
+from sentiment_analysis_spanish import sentiment_analysis
+from sentileak import SentiLeak
 
 # Libraries for text preprocessing
 import re
@@ -45,7 +50,7 @@ def printClusters(model, corpus):
 def kmeansTFIDF(corpus, k):
     vectorizer = TfidfVectorizer(stop_words=list(stopWords))
     wordVector = vectorizer.fit_transform(corpus)
-    model = KMeans(n_clusters=k, init="k-means++", max_iter=100, n_init=1)
+    model = KMeans(n_clusters=k, init="k-means++", max_iter=100)
     model.fit(wordVector)
     closest, distances = vq(model.cluster_centers_, wordVector.todense())
     return model, closest
@@ -53,9 +58,9 @@ def kmeansTFIDF(corpus, k):
 
 def kmeansDoc2Vec(corpus, k):
     wordVector = doc2vec(corpus)
-    model = KMeans(n_clusters=k, init="k-means++", max_iter=100, n_init=1)
+    model = KMeans(n_clusters=k, init="k-means++", max_iter=100)
     model.fit(wordVector)
-    closest, distances = vq(model.cluster_centers_, wordVector.todense())
+    closest, distances = vq(model.cluster_centers_, wordVector)
     return model, closest
 
 
@@ -82,6 +87,16 @@ def doc2vec(corpus):
     d2v.train(document_tagged, epochs=d2v.epochs,
               total_examples=d2v.corpus_count)
     return d2v.docvecs.vectors
+
+
+def SABayes(corpus):
+    sentimentAnalysis = sentiment_analysis.SentimentAnalysisSpanish()
+    return [sentimentAnalysis.sentiment(tweet) for tweet in corpus]
+
+
+def SALexicom(corpus):
+    sentimentAnalysis = SentiLeak()
+    return [sentimentAnalysis.compute_sentiment(tweet) for tweet in corpus]
 
 
 def som_test(corpus):
@@ -140,11 +155,22 @@ def showWordCount(wordFrequency, index):
     plt.clf()
 
 
-def processData():
+def lemmatizer():
+    lem = WordNetLemmatizer()
+    return lem.lemmatize
+
+
+def stemmer():
+    ps = PorterStemmer()
+    return ps.stem
+
+
+def processData(processor):
     engine = sqlalchemy.create_engine(CONNECTION_STRING)
     tweets = pd.read_sql_table(TABLE_NAME, engine)
     corpus = []
     rawCorpus = []
+    totalWords = 0
 
     for tweet in tweets.text:
         text = tweet
@@ -160,18 +186,14 @@ def processData():
 
         # Convert to list from string
         text = text.split()
-
-        # Stemming
-        # ps=PorterStemmer()    #Lemmatisation
-        lem = WordNetLemmatizer()
         text = [
-            lem.lemmatize(word)
+            processor(word)
             for word in text
             if not word in stopWords and len(word) >= minWordLength
         ]
         if len(text) > 3:
+            totalWords = totalWords + len(text)
             text = " ".join(text)
             corpus.append(text)
             rawCorpus.append(tweet)
-
-    return corpus, rawCorpus
+    return corpus, rawCorpus, totalWords/len(corpus)

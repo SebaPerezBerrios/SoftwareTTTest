@@ -1,5 +1,5 @@
 TRACK_TERMS = ["jadue"]
-TRACK_LIMIT = 5
+TRACK_LIMIT = 1
 CONNECTION_STRING = "sqlite:///tweets.db"
 TABLE_NAME = "sentimientos_contingencia"
 
