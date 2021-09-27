@@ -1,38 +1,36 @@
 """This module serves as the entry point of TwitterExtractor."""
-from nltk.corpus.reader.twitter import TwitterCorpusReader
-import TwitterExtractor.twitterDataProcessing as TwitterProcessing
-import TwitterExtractor.twitterLocalController as twitterLocalController
-import TwitterExtractor.settings as settings
 import timeit
+
+from twitterExtractor.twitterDataProcessing import *
 
 
 def benchmarkCorpusProcessing():
     corpusTime = timeit.timeit(
-        lambda: TwitterProcessing.processData(TwitterProcessing.lemmatizer()), number=100)
+        lambda: processData(lemmatizer()),
+        number=100,
+    )
     print(f"corpus time with lemmatizer: {corpusTime}")
     corpusTime = timeit.timeit(
-        lambda: TwitterProcessing.processData(TwitterProcessing.lemmatizer()), number=100)
+        lambda: processData(lemmatizer()),
+        number=100,
+    )
     print(f"corpus time with stemmer: {corpusTime}")
 
 
 def benchmarkVectorization(corpus):
-    kmeansTFIDFTime = timeit.timeit(
-        lambda: TwitterProcessing.kmeansTFIDF(corpus, 5), number=100)
+    kmeansTFIDFTime = timeit.timeit(lambda: kmeansTFIDF(corpus, 5), number=100)
     print(f"Kmeans (TFIDF) time: {kmeansTFIDFTime}")
-    kmeansWord2VecTime = timeit.timeit(
-        lambda: TwitterProcessing.kmeansDoc2Vec(corpus, 5), number=100)
+    kmeansWord2VecTime = timeit.timeit(lambda: kmeansDoc2Vec(corpus, 5), number=100)
     print(f"Kmeans (Word2Vec) time: {kmeansWord2VecTime}")
 
 
 def benchmarkGSDMM(corpus):
-    GSDMMTime = timeit.timeit(
-        lambda: TwitterProcessing.GSDMM(corpus), number=100)
+    GSDMMTime = timeit.timeit(lambda: GSDMM(corpus), number=100)
     print(f"GSDMM time: {GSDMMTime}")
 
 
 def benchmarkSABayes(corpus):
-    SABayesTime = timeit.timeit(
-        lambda: TwitterProcessing.SABayes(corpus), number=100)
+    SABayesTime = timeit.timeit(lambda: SABayes(corpus), number=100)
     print(f"Sentiment Analysis time: {SABayesTime}")
 
 
@@ -45,15 +43,16 @@ def main():
     benchmarkCorpusProcessing()
 
     corpus, tweets, avgTweetLength = TwitterProcessing.processData(
-        TwitterProcessing.lemmatizer())
+        TwitterProcessing.lemmatizer()
+    )
 
-    print(f'Avg tweet length: {avgTweetLength}')
+    print(f"Avg tweet length: {avgTweetLength}")
 
     benchmarkVectorization(corpus)
 
     benchmarkSABayes(corpus)
 
-    #kmeans, closests = TwitterProcessing.kmeansDoc2Vec(corpus, 5)
+    # kmeans, closests = TwitterProcessing.kmeansDoc2Vec(corpus, 5)
     # print(closests)
     # for index in closests:
     #    print(f"{index}: {tweets[index]}")
