@@ -1,9 +1,10 @@
 from .settings import *
 import tweepy
 from python_dict_wrapper import wrap
+from tweepy.parsers import JSONParser
 
 auth = tweepy.AppAuthHandler(TWITTER_APP_KEY, TWITTER_APP_SECRET)
-api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
+api = tweepy.API(auth, parser=JSONParser())
 
 
 def connectListener(streamListener, query):
@@ -17,7 +18,7 @@ def tweetObject(tweetDict):
 
 def queryAPI(query, count):
     print("search api")
-    results = api.search(query, count=count)
+    results = dict(api.search_tweets(query, count=count, lang="es"))
     if len(results["statuses"]) == 0:
         print("no tweet found")
 
