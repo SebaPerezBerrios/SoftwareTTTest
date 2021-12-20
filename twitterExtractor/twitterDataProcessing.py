@@ -1,7 +1,5 @@
 from gensim.models import Doc2Vec
 import gensim
-from nltk.stem import wordnet
-from numpy import vectorize
 import somoclu
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -10,17 +8,22 @@ import seaborn as sns
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from .settings import *
+
+
 import pandas as pd
-import sqlalchemy
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import collections
 from scipy.cluster.vq import vq
+
 from sentiment_analysis_spanish import sentiment_analysis
 from sentileak import SentiLeak
+import statistics
+
+from nltk.corpus import stopwords
+
+from .twitterLocalController import getResults
+from .settings import *
 
 # Libraries for text preprocessing
 import re
@@ -37,14 +40,62 @@ stopWords = (
 )
 
 
-def printClusters(model, corpus):
+def getMetricsCluster(tweets, alertWords, sentimentAnalyzer):
+
+    alertSet = set(alertWords)
+    alertCount = 0
+    totalTweets = 0
+
+    retweets = []
+    sentiments = []
+
+    def getStatistics(values):
+        return {
+            "avg": statistics.mean(values),
+            "std": statistics.stdev(values),
+            "median": statistics.median(values),
+        }
+
+    for tweet in tweets:
+        alertCountTweet = len(alertSet.intersection(tweet["processed"]))
+        sentimentAnalysis = sentimentAnalyzer(tweet["processedText"])
+
+        tweet["alertCount"] = alertCountTweet
+        tweet["sentimentAnalysis"] = sentimentAnalysis
+
+        totalTweets = totalTweets + 1
+        alertCount = alertCount + alertCountTweet
+
+        retweets.append(tweet["retweet_count"])
+        sentiments.append(sentimentAnalysis)
+
+    return {
+        "totalTweets": totalTweets,
+        "alertCount": alertCount,
+        "retweets": getStatistics(retweets),
+        "sentiments": getStatistics(sentiments),
+    }
+
+
+def getMetrics(model, tweets, alertWords, saType):
+
+    sentimentAnalyzer = (
+        sentiment_analysis.SentimentAnalysisSpanish().sentiment
+        if saType == "bayes"
+        else lambda tweet: SentiLeak().compute_sentiment(tweet)["global_sentiment"]
+    )
 
     clusters = collections.defaultdict(list)
     for i, label in enumerate(model.labels_):
-        clusters[label].append(i)
+        clusters[label].append(tweets[i])
 
-    for label, indexes in clusters.items():
-        print(f"{label}: {[corpus[idx] for idx in indexes][:5]}")
+    metricClusters = collections.defaultdict()
+    for label, tweets in clusters.items():
+        metricClusters[label.item()] = getMetricsCluster(
+            tweets, alertWords, sentimentAnalyzer
+        )
+
+    return metricClusters
 
 
 def kmeansTFIDF(corpus, k):
@@ -52,7 +103,7 @@ def kmeansTFIDF(corpus, k):
     wordVector = vectorizer.fit_transform(corpus)
     model = KMeans(n_clusters=k, init="k-means++", max_iter=100)
     model.fit(wordVector)
-    closest, distances = vq(model.cluster_centers_, wordVector.todense())
+    closest, distance = vq(model.cluster_centers_, wordVector.todense())
     return model, closest
 
 
@@ -60,7 +111,7 @@ def kmeansDoc2Vec(corpus, k):
     wordVector = doc2vec(corpus)
     model = KMeans(n_clusters=k, init="k-means++", max_iter=100)
     model.fit(wordVector)
-    closest, distances = vq(model.cluster_centers_, wordVector)
+    closest, distance = vq(model.cluster_centers_, wordVector)
     return model, closest
 
 
@@ -80,18 +131,16 @@ def doc2vec(corpus):
     document_tagged = []
     tagged_count = 0
     for _ in corpus:
-        document_tagged.append(
-            gensim.models.doc2vec.TaggedDocument(_, [tagged_count]))
+        document_tagged.append(gensim.models.doc2vec.TaggedDocument(_, [tagged_count]))
         tagged_count += 1
     d2v = Doc2Vec(document_tagged)
-    d2v.train(document_tagged, epochs=d2v.epochs,
-              total_examples=d2v.corpus_count)
+    d2v.train(document_tagged, epochs=d2v.epochs, total_examples=d2v.corpus_count)
     return d2v.docvecs.vectors
 
 
 def SABayes(corpus):
     sentimentAnalysis = sentiment_analysis.SentimentAnalysisSpanish()
-    return [sentimentAnalysis.sentiment(tweet) for tweet in corpus]
+    return [(sentimentAnalysis.sentiment(tweet), tweet) for tweet in corpus]
 
 
 def SALexicom(corpus):
@@ -125,13 +174,12 @@ def showWordCloud(dataList):
     plt.clf()
 
 
-def getTopWords(corpus, wordNumber=None, ngrams=(1, 1)):
-    vectorizer = CountVectorizer(
-        ngram_range=ngrams, max_features=2000).fit(corpus)
+def getTopWords(corpus, tweets, wordNumber=None, ngrams=(1, 1)):
+    vectorizer = CountVectorizer(ngram_range=ngrams, max_features=2000).fit(corpus)
     wordVector = vectorizer.transform(corpus)
     totalWords = wordVector.sum(axis=0)
     wordFrequency = [
-        (word, totalWords[0, idx]) for word, idx in vectorizer.vocabulary_.items()
+        (word, int(totalWords[0, idx])) for word, idx in vectorizer.vocabulary_.items()
     ]
     wordFrequency = sorted(wordFrequency, key=lambda x: x[1], reverse=True)
     return wordFrequency[
@@ -147,8 +195,7 @@ def showWordCount(wordFrequency, index):
     # sns.set(rc={"figure.figsize": (20, 10)})
     plt.figure(figsize=(20, 10))
 
-    wordGraphics = sns.barplot(
-        x="Termino", y="Frecuencia", data=topWordsDataFrame)
+    wordGraphics = sns.barplot(x="Termino", y="Frecuencia", data=topWordsDataFrame)
     wordGraphics.set_xticklabels(wordGraphics.get_xticklabels(), rotation=30)
     figName = "wordCount " + ", ".join(TRACK_TERMS) + f" {index}"
     plt.savefig(figName, dpi=200)
@@ -165,15 +212,14 @@ def stemmer():
     return ps.stem
 
 
-def processData(processor):
-    engine = sqlalchemy.create_engine(CONNECTION_STRING)
-    tweets = pd.read_sql_table(TABLE_NAME, engine)
+def processData(processor, db):
+    tweets = getResults(db)
     corpus = []
     rawCorpus = []
     totalWords = 0
 
-    for tweet in tweets.text:
-        text = tweet
+    for tweet in tweets:
+        text = tweet["text"]
         # remove links
         text = re.sub(r"https?://\S+", "", text)
         # separate compound words
@@ -192,8 +238,10 @@ def processData(processor):
             if not word in stopWords and len(word) >= minWordLength
         ]
         if len(text) > 3:
+            tweet["processed"] = text
             totalWords = totalWords + len(text)
             text = " ".join(text)
             corpus.append(text)
+            tweet["processedText"] = text
             rawCorpus.append(tweet)
-    return corpus, rawCorpus, totalWords/len(corpus)
+    return corpus, rawCorpus
